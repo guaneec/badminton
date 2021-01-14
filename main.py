@@ -3,6 +3,8 @@ import json
 
 from blob import BlobExtractor
 
+steps = {k: v for v, k in enumerate(["blob", "train", "infer", "eval"])}
+
 
 def main():
     parser = argparse.ArgumentParser(description="Track badminton shuttles")
@@ -35,6 +37,14 @@ def main():
         help="Exclusion JSON config file",
         default="data/exclude.json",
     )
+
+    parser.add_argument(
+        "--start_from",
+        help="Step to start from (blob -> train -> infer -> eval",
+        choices=steps.keys(),
+        default="blob",
+    )
+
     args = parser.parse_args()
     with open(args.training_set) as f:
         training_set = set(f.read().splitlines())
@@ -47,12 +57,22 @@ def main():
         print(f"WARNING: {args.excludes} not found")
         excludes = {}
 
-    extractor = BlobExtractor(
-        args.frames_path, args.xml_path, training_set, test_set, args.blob_path, excludes
-    )
-    extractor.extract()
+    if steps[args.start_from] <= steps["blob"]:
+        extractor = BlobExtractor(
+            args.frames_path,
+            args.xml_path,
+            training_set,
+            test_set,
+            args.blob_path,
+            excludes,
+        )
+        extractor.extract()
 
-    # train_classifier()
+    if steps[args.start_from] <= steps["train"]:
+        from train import train_model
+
+        model = train_model(args.blob_path)
+
     # infer()
     # evaluate()
 
