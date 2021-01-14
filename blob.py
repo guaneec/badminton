@@ -1,16 +1,16 @@
 import glob
 from pathlib import Path
 import cv2
-import xml.etree.ElementTree as ET
 import os
 import shutil
+from misc import read_boxes
 from tqdm import tqdm
 
 
 TRAIN = "train"
 TEST = "test"
-BALL = "ball"
-NOT_BALL = "not_ball"
+BALL = "1_ball"
+NOT_BALL = "0_not_ball"
 
 
 class BlobExtractor:
@@ -54,14 +54,7 @@ class BlobExtractor:
             annotation_file = self.get_xml_file(frame_name)
 
             try:
-                root = ET.parse(annotation_file)
-                boxes = []
-                for b in root.findall("object/bndbox"):
-                    xmin = int(b.find("xmin").text)
-                    xmax = int(b.find("xmax").text)
-                    ymin = int(b.find("ymin").text)
-                    ymax = int(b.find("ymax").text)
-                    boxes.append((xmin, ymin, xmax, ymax))
+                boxes = read_boxes(annotation_file)
 
             except FileNotFoundError as e:
                 if not warned:
@@ -86,7 +79,7 @@ class BlobExtractor:
                     str(
                         Path(self.output_path)
                         / ["train", "test"][is_test]
-                        / "ball"
+                        / BALL
                         / f"{parent}_{ball_i:08d}.png"
                     ),
                     cutout(cnt, frame),
@@ -98,7 +91,7 @@ class BlobExtractor:
                     str(
                         Path(self.output_path)
                         / ["train", "test"][is_test]
-                        / "not_ball"
+                        / NOT_BALL
                         / f"{parent}_{not_ball_i:08d}.png"
                     ),
                     cutout(cnt, frame),
