@@ -45,6 +45,16 @@ def main():
         default="blob",
     )
 
+    parser.add_argument(
+        "--model_path", help="Path to store the trained model", default="data/model"
+    )
+
+    parser.add_argument(
+        "--prediction_path",
+        help="Path to store the prediction results",
+        default="data/prediction.json",
+    )
+
     args = parser.parse_args()
     with open(args.training_set) as f:
         training_set = set(f.read().splitlines())
@@ -72,8 +82,20 @@ def main():
         from train import train_model
 
         model = train_model(args.blob_path)
+        model.save(args.model_path)
+    else:
+        import tensorflow as tf
+        from misc import fix_conv
+        fix_conv()
+        model = tf.keras.models.load_model(args.model_path)
 
-    # infer()
+    if steps[args.start_from] <= steps["infer"]:
+        from infer import Predictor
+        predictor = Predictor(model, args.frames_path, args.xml_path)
+        preds = predictor.predict(training_set)
+        with open(args.prediction_path, "w") as f:
+            json.dump(preds, f)
+
     # evaluate()
 
 
