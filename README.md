@@ -1,6 +1,34 @@
 # Badminton shuttle tracking
 Attempts to track the position of the shuttle(s) in a video.
 
+## Usage summary
+
+
+```
+# Dataset specific commands
+# Run once to load data into appropriate locations
+
+# Clean images and annotation files
+python clean.py BADMINTON_DATA_ROOT
+
+# Copy data to the preset location
+python prepare.py --src BADMINTON_DATA_ROOT
+# Alternatively, just copy a subset
+python prepare.py --src BADMINTON_DATA_ROOT --include 01,02,05
+
+
+
+# Training
+
+# Test train split
+python split.py
+
+# Actual training and evaluation
+python main.py
+# Or start from an intermediate step with different arguments
+python main.py --start_from eval --iou_thres 0.25
+```
+
 ## Data preparation
 ### File layout
 The paths for the input are specified by `--frames_path` and `--xml_path`. The files should have the following structure:
