@@ -83,20 +83,38 @@ def main():
 
         model = train_model(args.blob_path)
         model.save(args.model_path)
-    else:
-        import tensorflow as tf
-        from misc import fix_conv
-        fix_conv()
-        model = tf.keras.models.load_model(args.model_path)
 
     if steps[args.start_from] <= steps["infer"]:
+        if steps[args.start_from] > steps["train"]:
+            import tensorflow as tf
+            from misc import fix_conv
+
+            fix_conv()
+            model = tf.keras.models.load_model(args.model_path)
+
         from infer import Predictor
+
         predictor = Predictor(model, args.frames_path, args.xml_path)
-        preds = predictor.predict(training_set)
+        preds = predictor.predict(test_set)
         with open(args.prediction_path, "w") as f:
             json.dump(preds, f)
 
-    # evaluate()
+    if steps[args.start_from] <= steps["eval"]:
+        if steps[args.start_from] > steps["infer"]:
+            with open(args.prediction_path) as f:
+                preds = json.load(f)
+        
+        from eval import precision_recall, count_gt
+        import matplotlib.pyplot as plt
+        n_gt = count_gt(test_set)
+        prec, rec = precision_recall(preds, 0.25, n_gt)
+        plt.axis('square')
+        plt.xlabel('recall')
+        plt.ylabel('precision')
+        plt.xlim(0, 1)
+        plt.ylim(0, 1)
+        plt.plot(rec, prec)
+        plt.savefig("data/pr.png")
 
 
 if __name__ == "__main__":

@@ -5,5 +5,5 @@ setup(
     version="0.0.1",
     python_requires=">=3.8, <3.9",
     packages=find_packages(where="src"),
-    install_requires=["opencv-contrib-python", "tensorflow", "tqdm"],
+    install_requires=["opencv-contrib-python", "tensorflow", "tqdm", "matplotlib"],
 )
