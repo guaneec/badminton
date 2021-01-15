@@ -93,6 +93,9 @@ def main():
         model = train_model(args.blob_path)
         model.save(args.model_path)
 
+    def get_tag(xml_path):
+        return "test" if xml_path in test_set else "train" if xml_path in training_set else None
+
     if steps[args.start_from] <= steps["infer"]:
         print("Predicting\n")
         if steps[args.start_from] > steps["train"]:
@@ -105,7 +108,7 @@ def main():
         from infer import Predictor
 
         predictor = Predictor(model, args.frames_path, args.xml_path)
-        preds = predictor.predict(test_set)
+        preds = predictor.predict(get_tag)
         with open(args.prediction_path, "w") as f:
             json.dump(preds, f)
 
@@ -119,16 +122,20 @@ def main():
         from voc_ap import voc_ap
         import matplotlib.pyplot as plt
 
-        n_gt = count_gt(test_set)
-        prec, rec = precision_recall(preds, args.iou_thres, n_gt)
-        plt.axis("square")
-        plt.xlabel("recall")
-        plt.ylabel("precision")
-        plt.xlim(0, 1)
-        plt.ylim(0, 1)
-        plt.plot(rec, prec)
-        plt.savefig("data/pr.png")
-        print(f"VOC AP@{args.iou_thres:.02f}: {voc_ap(rec.tolist(), prec.tolist()):.4f}")
+        for subset, tag in [(test_set, "test"), (training_set, "train")]:
+            n_gt = count_gt(subset)
+            filtered_preds = [p for p in preds if p[-1] == tag]
+            prec, rec = precision_recall(filtered_preds, args.iou_thres, n_gt)
+            ap = voc_ap(rec.tolist(), prec.tolist())
+            plt.title(f"VOC AP@{args.iou_thres:.02f}: {ap:.4f} ({tag})")
+            plt.axis("square")
+            plt.xlabel("recall")
+            plt.ylabel("precision")
+            plt.xlim(0, 1)
+            plt.ylim(0, 1)
+            plt.plot(rec, prec)
+            plt.savefig(f"data/pr_{args.iou_thres:.02f}:_{tag}.png")
+            print(f"VOC AP@{args.iou_thres:.02f}: {ap:.4f} ({tag})")
 
 
 if __name__ == "__main__":

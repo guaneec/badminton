@@ -4,6 +4,8 @@ import cv2
 from misc import read_boxes
 from tqdm import tqdm
 import tensorflow as tf
+from collections import deque
+import numpy as np
 
 
 class Predictor:
@@ -12,17 +14,18 @@ class Predictor:
         self.frames_path = frames_path
         self.xml_path = xml_path
 
-    def predict(self, subset):
+    def predict(self, get_tag):
         """return list of (iou, confidence) sorted by descending confidence"""
         preds = []
         for frame_set in glob.glob(str(Path(self.frames_path) / "*")):
             print(frame_set)
-            preds.extend(self._predict_single_vid(frame_set, subset))
+            preds.extend(self._predict_single_vid(frame_set, get_tag))
         preds = sorted(preds, key=lambda x: -x[1])
         return preds
 
-    def _predict_single_vid(self, vid_path, subset):
+    def _predict_single_vid(self, vid_path, get_tag):
         bg = cv2.createBackgroundSubtractorKNN()
+        batcher = Batcher(self.model)
         for i, frame_name in enumerate(
             tqdm(sorted(glob.glob(str(Path(vid_path) / "*"))))
         ):
@@ -36,7 +39,8 @@ class Predictor:
                 continue
 
             annotation_file = self.get_xml_file(frame_name)
-            if annotation_file not in subset:
+            tag = get_tag(annotation_file)
+            if not tag:
                 continue
 
             boxes = read_boxes(annotation_file)
@@ -49,15 +53,50 @@ class Predictor:
             for cnt in cnts:
                 patch = cutout(cnt, frame)
                 patch = tf.image.resize(patch, (32, 32))
-                p = float(self.model.predict(patch[None]).ravel()[0])
                 x, y, w, h = cv2.boundingRect(cnt)
                 b = (x, y, x + w, y + h)
                 o = max(iou(b, box) for box in boxes) if boxes else 0.0
-                yield o, p, frame_name, b
+
+                batcher.push(patch, o, frame_name, b, tag)
+                yield from batcher.pop_ready()
+        yield from batcher.pop_all()
 
     def get_xml_file(self, frame_file):
         p = Path(frame_file)
         return str(Path(self.xml_path) / p.parts[-2] / f"{p.stem}.xml")
+
+
+class Batcher:
+    def __init__(self, model, batch_size=256):
+        self.model = model
+        self.batch_size = batch_size
+        self.img_buf = []
+        self.other_q = deque()
+        self.output_buf = []
+
+    def push(self, img, iou, frame_name, box, tag):
+        assert len(self.img_buf) < self.batch_size
+        self.img_buf.append(img)
+        self.other_q.append((iou, frame_name, box, tag))
+        if len(self.img_buf) == self.batch_size:
+            self.dispatch()
+
+    def dispatch(self):
+        self.output_buf.extend(
+            self.model.predict(np.array(self.img_buf)).ravel().astype(float)
+        )
+        self.img_buf = []
+
+    def pop_ready(self):
+        assert len(self.output_buf) <= len(self.other_q)
+        for p in self.output_buf:
+            iou, frame_name, box, tag = self.other_q.popleft()
+            yield iou, p, frame_name, box, tag
+        self.output_buf = []
+
+    def pop_all(self):
+        self.dispatch()
+        yield from self.pop_ready()
 
 
 def may_be_ball(contour):
