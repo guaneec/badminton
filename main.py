@@ -75,6 +75,7 @@ def main():
         excludes = {}
 
     if steps[args.start_from] <= steps["blob"]:
+        print("Extracting blobs\n")
         extractor = BlobExtractor(
             args.frames_path,
             args.xml_path,
@@ -86,12 +87,14 @@ def main():
         extractor.extract()
 
     if steps[args.start_from] <= steps["train"]:
+        print("Training classfier on blobs\n")
         from train import train_model
 
         model = train_model(args.blob_path)
         model.save(args.model_path)
 
     if steps[args.start_from] <= steps["infer"]:
+        print("Predicting\n")
         if steps[args.start_from] > steps["train"]:
             import tensorflow as tf
             from misc import fix_conv
@@ -107,6 +110,7 @@ def main():
             json.dump(preds, f)
 
     if steps[args.start_from] <= steps["eval"]:
+        print("Evaluation\n")
         if steps[args.start_from] > steps["infer"]:
             with open(args.prediction_path) as f:
                 preds = json.load(f)
