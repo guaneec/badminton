@@ -55,6 +55,13 @@ def main():
         default="data/prediction.json",
     )
 
+    parser.add_argument(
+        "--iou_thres",
+        help="IOU threshold",
+        type=float,
+        default=0.1
+    )
+
     args = parser.parse_args()
     with open(args.training_set) as f:
         training_set = set(f.read().splitlines())
@@ -103,18 +110,21 @@ def main():
         if steps[args.start_from] > steps["infer"]:
             with open(args.prediction_path) as f:
                 preds = json.load(f)
-        
+
         from eval import precision_recall, count_gt
+        from voc_ap import voc_ap
         import matplotlib.pyplot as plt
+
         n_gt = count_gt(test_set)
-        prec, rec = precision_recall(preds, 0.25, n_gt)
-        plt.axis('square')
-        plt.xlabel('recall')
-        plt.ylabel('precision')
+        prec, rec = precision_recall(preds, args.iou_thres, n_gt)
+        plt.axis("square")
+        plt.xlabel("recall")
+        plt.ylabel("precision")
         plt.xlim(0, 1)
         plt.ylim(0, 1)
         plt.plot(rec, prec)
         plt.savefig("data/pr.png")
+        print(f"VOC AP@{args.iou_thres:.02f}: {voc_ap(rec.tolist(), prec.tolist()):.4f}")
 
 
 if __name__ == "__main__":
