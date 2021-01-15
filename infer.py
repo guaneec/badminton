@@ -40,7 +40,6 @@ class Predictor:
                 continue
 
             boxes = read_boxes(annotation_file)
-            assert boxes
 
             cnts, _ = cv2.findContours(fg, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
             cnts = [cnt for cnt in cnts if may_be_ball(cnt)]
@@ -53,8 +52,8 @@ class Predictor:
                 p = float(self.model.predict(patch[None]).ravel()[0])
                 x, y, w, h = cv2.boundingRect(cnt)
                 b = (x, y, x + w, y + h)
-                o = max(iou(b, box) for box in boxes)
-                yield o, p
+                o = max(iou(b, box) for box in boxes) if boxes else 0.0
+                yield o, p, frame_name, b
 
     def get_xml_file(self, frame_file):
         p = Path(frame_file)
