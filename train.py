@@ -24,7 +24,7 @@ def train_model(path):
 
 
     test_ds = tf.keras.preprocessing.image_dataset_from_directory(
-        train_path, image_size=image_size, batch_size=batch_size
+        test_path, image_size=image_size, batch_size=batch_size
     )
 
     model = tf.keras.Sequential([
